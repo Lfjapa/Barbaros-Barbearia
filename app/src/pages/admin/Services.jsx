@@ -16,9 +16,23 @@ export default function Services() {
         loadServices();
     }, []);
 
+    const DEFAULT_SERVICES = [
+        { name: 'Corte de Cabelo', price: 30, commission: 40 },
+        { name: 'Barba', price: 20, commission: 40 },
+        { name: 'Pezinho', price: 10, commission: 40 },
+        { name: 'Sobrancelha', price: 15, commission: 40 },
+    ];
+
     async function loadServices() {
         try {
-            const data = await getServices();
+            let data = await getServices();
+
+            if (data.length === 0) {
+                // Auto-seed defaults
+                await Promise.all(DEFAULT_SERVICES.map(s => addService(s)));
+                data = await getServices(); // Fetch again
+            }
+
             setServices(data);
         } catch (error) {
             console.error("Error loading services:", error);

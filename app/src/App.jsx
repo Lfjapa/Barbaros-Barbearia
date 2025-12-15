@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import PrivateRoute from './components/PrivateRoute';
 import Login from './pages/Login';
 import NewSale from './pages/barber/NewSale';
 import History from './pages/barber/History';
@@ -14,13 +15,26 @@ function App() {
         <Route path="/login" element={<Login />} />
 
         {/* Barber Routes */}
-        <Route path="/app" element={<NewSale />} />
-        <Route path="/app/history" element={<History />} />
+        <Route path="/app/*" element={
+          <PrivateRoute allowedRoles={['barber']}>
+            <Routes>
+              <Route path="/" element={<NewSale />} />
+              <Route path="/history" element={<History />} />
+            </Routes>
+          </PrivateRoute>
+        } />
 
         {/* Admin Routes */}
-        <Route path="/admin" element={<Dashboard />} />
-        <Route path="/admin/services" element={<Services />} />
-        <Route path="/admin/barbers" element={<Barbers />} />
+        <Route path="/admin/*" element={
+          <PrivateRoute allowedRoles={['admin']}>
+            <Routes>
+              <Route path="/" element={<Dashboard />} />
+              <Route path="/history" element={<History />} />
+              <Route path="/services" element={<Services />} />
+              <Route path="/barbers" element={<Barbers />} />
+            </Routes>
+          </PrivateRoute>
+        } />
       </Routes>
     </BrowserRouter>
   );

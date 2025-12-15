@@ -3,6 +3,7 @@ import {
     getDocs,
     addDoc,
     deleteDoc,
+    updateDoc,
     doc,
     setDoc,
     query,
@@ -33,16 +34,17 @@ export async function getBarbers() {
 }
 
 export async function addBarber(barberData) {
-    // barberData: { name, email, ... }
-    // ideally we would create auth user here, but client SDK can't create other users easily
-    // so we just add to "users" collection. User must sign up with matching email or we control auth differently.
-    // For simplicity, we just add a doc. ID will be auto-generated if we use addDoc,
-    // but usually users have auth uid. Let's use addDoc for now as a "profile placeholder"
     const docRef = await addDoc(collection(db, "users"), {
         ...barberData,
-        role: 'barber'
+        role: 'barber',
+        isActive: true // Default to active
     });
     return docRef.id;
+}
+
+export async function updateBarber(barberId, data) {
+    const docRef = doc(db, "users", barberId);
+    await updateDoc(docRef, data);
 }
 
 export async function deleteBarber(barberId) {
@@ -67,12 +69,16 @@ export async function addTransaction(transactionData) {
 }
 
 export async function getHistory(barberId) {
-    // If barberId is provided, filter by it. Otherwise show all (for admin?)
-    // For now, let's just get the last 20 transactions
+    // If barberId is provided, filter by it. Otherwise show all
+    let constraints = [orderBy("date", "desc")];
+
+    if (barberId) {
+        constraints.push(where("barberId", "==", barberId));
+    }
+
     let q = query(
         collection(db, "transactions"),
-        where("barberId", "==", barberId),
-        orderBy("date", "desc")
+        ...constraints
     );
 
     const querySnapshot = await getDocs(q);
@@ -82,23 +88,43 @@ export async function getHistory(barberId) {
         return {
             id: doc.id,
             ...data,
-            createdAt: dateObj, // Return raw Date object for filtering
+            createdAt: dateObj,
             date: dateObj.toLocaleDateString('pt-BR') + ' ' + dateObj.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
         };
     });
 }
 
 // Flexible function for reports
-export async function getTransactionsByRange(startDate, endDate) {
+// Flexible function for reports
+export async function getTransactionsByRange(startDate, endDate, barberId = null) {
     // Ensure dates are Date objects
     const start = new Date(startDate);
     const end = new Date(endDate);
 
-    const q = query(
-        collection(db, "transactions"),
+    let constraints = [
         where("date", ">=", start),
         where("date", "<=", end),
         orderBy("date", "desc")
+    ];
+
+    if (barberId) {
+        if (Array.isArray(barberId)) {
+            if (barberId.length > 0) {
+                // Firestore 'in' matches any value in the array (max 10)
+                constraints.push(where("barberId", "in", barberId));
+            } else {
+                // Empty array provided, means "no matching IDs", return empty immediately or just query normally?
+                // If we want SPECIFIC IDs and get None, we should return empty.
+                return [];
+            }
+        } else {
+            constraints.push(where("barberId", "==", barberId));
+        }
+    }
+
+    const q = query(
+        collection(db, "transactions"),
+        ...constraints
     );
 
     const querySnapshot = await getDocs(q);
@@ -114,4 +140,11 @@ export async function getDailyTransactions() {
     endOfDay.setHours(23, 59, 59, 999);
 
     return getTransactionsByRange(startOfDay, endOfDay);
+}
+
+export async function getBarberIdsByEmail(email) {
+    if (!email) return [];
+    const q = query(collection(db, "users"), where("email", "==", email));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.id);
 }

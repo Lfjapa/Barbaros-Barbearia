@@ -17,6 +17,7 @@ export function useAuth() {
 export function AuthProvider({ children }) {
     const [currentUser, setCurrentUser] = useState(null);
     const [userRole, setUserRole] = useState(null); // 'admin' | 'barber'
+    const [userData, setUserData] = useState(null);
     const [loading, setLoading] = useState(true);
 
     async function login(email, password) {
@@ -53,10 +54,12 @@ export function AuthProvider({ children }) {
     async function fetchUserRole(uid) {
         const userDoc = await getDoc(doc(db, "users", uid));
         if (userDoc.exists()) {
-            setUserRole(userDoc.data().role);
+            const data = userDoc.data();
+            setUserRole(data.role);
+            setUserData(data);
         } else {
             console.error("User profile not found in Firestore");
-            setUserRole('barber'); // Fallback to barber if profile missing
+            setUserRole('barber'); // Fallback
         }
     }
 
@@ -70,10 +73,13 @@ export function AuthProvider({ children }) {
                 // Fetch role again on page reload to persist state
                 const userDoc = await getDoc(doc(db, "users", user.uid));
                 if (userDoc.exists()) {
-                    setUserRole(userDoc.data().role);
+                    const data = userDoc.data();
+                    setUserRole(data.role);
+                    setUserData(data);
                 }
             } else {
                 setUserRole(null);
+                setUserData(null);
             }
             setCurrentUser(user);
             setLoading(false);
@@ -85,6 +91,7 @@ export function AuthProvider({ children }) {
     const value = {
         currentUser,
         userRole,
+        userData,
         login,
         loginWithGoogle,
         logout
