@@ -3,12 +3,13 @@ import { Layout } from '../../components/layout/Navbar';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
-import { Trash2, Edit2, Plus } from 'lucide-react';
-import { getServices, addService, deleteService } from '../../services/db';
+import { Trash2, Edit2, Plus, Pencil } from 'lucide-react';
+import { getServices, addService, deleteService, updateService } from '../../services/db';
 
 export default function Services() {
     const [services, setServices] = useState([]);
     const [isEditing, setIsEditing] = useState(false);
+    const [editingId, setEditingId] = useState(null);
     const [formData, setFormData] = useState({ name: '', price: '', commission: '' });
     const [loading, setLoading] = useState(true);
 
@@ -53,23 +54,47 @@ export default function Services() {
         }
     };
 
+    const handleEdit = (service) => {
+        setEditingId(service.id);
+        setFormData({
+            name: service.name,
+            price: service.price,
+            commission: service.commission
+        });
+        setIsEditing(true);
+    };
+
+    const handleCancel = () => {
+        setIsEditing(false);
+        setEditingId(null);
+        setFormData({ name: '', price: '', commission: '' });
+    };
+
     const handleSave = async () => {
         if (!formData.name || !formData.price || !formData.commission) return;
 
         try {
-            const newService = {
+            const serviceData = {
                 name: formData.name,
                 price: Number(formData.price),
                 commission: Number(formData.commission)
             };
 
-            const id = await addService(newService);
-            setServices([...services, { id, ...newService }]);
+            if (editingId) {
+                // Update existing
+                await updateService(editingId, serviceData);
+                setServices(prev => prev.map(s => 
+                    s.id === editingId ? { ...s, ...serviceData } : s
+                ));
+            } else {
+                // Create new
+                const id = await addService(serviceData);
+                setServices([...services, { id, ...serviceData }]);
+            }
 
-            setIsEditing(false);
-            setFormData({ name: '', price: '', commission: '' });
+            handleCancel();
         } catch (error) {
-            console.error("Error adding service:", error);
+            console.error("Error saving service:", error);
             alert("Erro ao salvar serviço.");
         }
     };
@@ -82,7 +107,7 @@ export default function Services() {
                 <h1 className="text-xl font-bold text-[var(--color-primary)]">Serviços</h1>
                 <Button
                     className="w-auto p-2"
-                    onClick={() => setIsEditing(true)}
+                    onClick={() => { handleCancel(); setIsEditing(true); }}
                 >
                     <Plus size={20} />
                 </Button>
@@ -90,7 +115,7 @@ export default function Services() {
 
             {isEditing && (
                 <Card className="mb-6 border-[var(--color-primary)]">
-                    <h2 className="font-bold mb-4">Novo Serviço</h2>
+                    <h2 className="font-bold mb-4">{editingId ? 'Editar Serviço' : 'Novo Serviço'}</h2>
                     <div className="flex flex-col gap-4">
                         <Input
                             label="Nome"
@@ -113,14 +138,14 @@ export default function Services() {
                         </div>
                         <div className="flex gap-2 mt-2">
                             <Button onClick={handleSave}>Salvar</Button>
-                            <Button variant="secondary" onClick={() => setIsEditing(false)}>Cancelar</Button>
+                            <Button variant="secondary" onClick={handleCancel}>Cancelar</Button>
                         </div>
                     </div>
                 </Card>
             )}
 
-            <div className="flex flex-col gap-3">
-                {services.length === 0 && <div className="text-sm text-gray-500">Nenhum serviço cadastrado.</div>}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {services.length === 0 && <div className="col-span-full text-sm text-gray-500">Nenhum serviço cadastrado.</div>}
                 {services.map(service => (
                     <Card key={service.id} className="flex justify-between items-center">
                         <div>
@@ -130,6 +155,12 @@ export default function Services() {
                             </div>
                         </div>
                         <div className="flex gap-2">
+                            <button
+                                className="p-2 text-[var(--color-text-secondary)] hover:text-white"
+                                onClick={() => handleEdit(service)}
+                            >
+                                <Pencil size={18} />
+                            </button>
                             <button
                                 className="p-2 text-[var(--color-error)] hover:opacity-80"
                                 onClick={() => handleDelete(service.id)}

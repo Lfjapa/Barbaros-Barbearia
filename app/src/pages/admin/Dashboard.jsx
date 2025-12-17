@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { Layout } from '../../components/layout/Navbar';
 import { Card } from '../../components/ui/Card';
 import { getTransactionsByRange, getBarbers } from '../../services/db';
-import { ChevronLeft, ChevronRight, Calendar, User, DollarSign } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, User, DollarSign, TrendingUp } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 export default function Dashboard() {
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -25,21 +26,23 @@ export default function Dashboard() {
             const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
             const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59);
 
-            const [monthlyTransactions, barbersList] = await Promise.all([
+            const [monthlyTransactionsResult, barbersList] = await Promise.all([
                 getTransactionsByRange(startOfMonth, endOfMonth),
                 getBarbers()
             ]);
 
-            // Calculate Totals (Force 60/40 rule)
+            const monthlyTransactions = monthlyTransactionsResult.data;
+
+            // Calculate Totals (Use stored values)
             const totalRevenue = monthlyTransactions.reduce((sum, t) => sum + t.total, 0);
-            const totalCommission = totalRevenue * 0.40;
-            const totalHouse = totalRevenue * 0.60;
+            const totalCommission = monthlyTransactions.reduce((sum, t) => sum + (t.commissionAmount || (t.total * 0.40)), 0);
+            const totalHouse = monthlyTransactions.reduce((sum, t) => sum + (t.revenueAmount || (t.total * 0.60)), 0);
 
             // Process per Barber
             const barbersData = barbersList.map(barber => {
                 const barberTxs = monthlyTransactions.filter(t => t.barberId === barber.id);
                 const barberTotal = barberTxs.reduce((sum, t) => sum + t.total, 0);
-                const barberCommission = barberTotal * 0.40;
+                const barberCommission = barberTxs.reduce((sum, t) => sum + (t.commissionAmount || (t.total * 0.40)), 0);
 
                 // Group by Week
                 const weeklyBreakdown = [0, 0, 0, 0, 0]; // Up to 5 weeks
@@ -50,7 +53,7 @@ export default function Dashboard() {
                     // Week 1: 1-7, Week 2: 8-14, etc.
                     const weekIndex = Math.floor((day - 1) / 7);
                     if (weekIndex < 5) {
-                        weeklyBreakdown[weekIndex] += (t.total * 0.40);
+                        weeklyBreakdown[weekIndex] += (t.commissionAmount || (t.total * 0.40));
                     }
                 });
 
@@ -139,6 +142,49 @@ export default function Dashboard() {
                     <div className="text-[10px] text-gray-500 mt-1 uppercase">Total a repassar aos barbeiros</div>
                 </Card>
             </div>
+
+            {/* Revenue Chart */}
+            <Card className="mb-8 p-6">
+                <div className="flex items-center justify-between mb-6">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
+                        <TrendingUp size={24} className="text-[var(--color-primary)]" />
+                        Evolução Diária
+                    </h2>
+                </div>
+                <div className="h-[300px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={metrics.dailyData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
+                            <XAxis 
+                                dataKey="day" 
+                                stroke="#888" 
+                                fontSize={12}
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <YAxis 
+                                stroke="#888" 
+                                fontSize={12}
+                                tickFormatter={(value) => `R$${value}`}
+                                tickLine={false}
+                                axisLine={false}
+                            />
+                            <Tooltip 
+                                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
+                                itemStyle={{ color: '#fff' }}
+                                formatter={(value) => [formatMoney(value), 'Faturamento']}
+                                labelFormatter={(label) => `Dia ${label}`}
+                            />
+                            <Bar 
+                                dataKey="total" 
+                                fill="var(--color-primary)" 
+                                radius={[4, 4, 0, 0]}
+                                maxBarSize={50}
+                            />
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </Card>
 
             {/* Barber Breakdown */}
             <h2 className="text-lg font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-[var(--color-border)] pb-2">

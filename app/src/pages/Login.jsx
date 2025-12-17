@@ -18,7 +18,6 @@ export default function Login() {
             setError('');
             setLoading(true);
             await login(email, password);
-            await login(email, password);
             // Role check handled by PrivateRoute or explicit check here if needed?
             // Since context updates, we can just navigate to root and let logic handle, 
             // BUT better to be explicit:

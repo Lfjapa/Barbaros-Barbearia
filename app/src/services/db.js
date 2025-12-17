@@ -1,6 +1,7 @@
 import {
     collection,
     getDocs,
+    getDoc,
     addDoc,
     deleteDoc,
     updateDoc,
@@ -9,9 +10,31 @@ import {
     query,
     where,
     orderBy,
+    limit,
+    startAfter,
     Timestamp
 } from 'firebase/firestore';
 import { db } from './firebase';
+
+export async function getSystemSettings() {
+    try {
+        const docRef = doc(db, "settings", "general");
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+            return docSnap.data();
+        } else {
+            return { commissionRate: 0.40 };
+        }
+    } catch (error) {
+        console.error("Error fetching settings:", error);
+        return { commissionRate: 0.40 };
+    }
+}
+
+export async function saveSystemSettings(settings) {
+    const docRef = doc(db, "settings", "general");
+    await setDoc(docRef, settings, { merge: true });
+}
 
 export async function getServices() {
     const querySnapshot = await getDocs(collection(db, "services"));
@@ -25,6 +48,11 @@ export async function addService(serviceData) {
 
 export async function deleteService(serviceId) {
     await deleteDoc(doc(db, "services", serviceId));
+}
+
+export async function updateService(serviceId, serviceData) {
+    const docRef = doc(db, "services", serviceId);
+    await updateDoc(docRef, serviceData);
 }
 
 export async function getBarbers() {
@@ -52,15 +80,22 @@ export async function deleteBarber(barberId) {
 }
 
 export async function addTransaction(transactionData) {
-    // transactionData should have: barberId, serviceIds, total, method, userId (who registered)
+    // transactionData should have: barberId, serviceIds, total, method, userId (who registered), commissionRate (optional)
     const total = Number(transactionData.total);
-    const commissionRate = 0.40; // 40% for the barber
+    
+    // Use provided commissionRate or default to 0.40 if not provided (though UI should provide it)
+    // We prioritize the rate passed in transactionData to ensure historical accuracy if rules change
+    const commissionRate = transactionData.commissionRate !== undefined 
+        ? Number(transactionData.commissionRate) 
+        : 0.40; 
+
     const commissionAmount = total * commissionRate;
-    const revenueAmount = total - commissionAmount; // 60% for the house
+    const revenueAmount = total - commissionAmount;
 
     const docRef = await addDoc(collection(db, "transactions"), {
         ...transactionData,
         total,
+        commissionRate, // Store the rate used
         commissionAmount,
         revenueAmount,
         date: Timestamp.now()
@@ -96,7 +131,7 @@ export async function getHistory(barberId) {
 
 // Flexible function for reports
 // Flexible function for reports
-export async function getTransactionsByRange(startDate, endDate, barberId = null) {
+export async function getTransactionsByRange(startDate, endDate, barberId = null, lastDoc = null, limitSize = null) {
     // Ensure dates are Date objects
     const start = new Date(startDate);
     const end = new Date(endDate);
@@ -113,13 +148,19 @@ export async function getTransactionsByRange(startDate, endDate, barberId = null
                 // Firestore 'in' matches any value in the array (max 10)
                 constraints.push(where("barberId", "in", barberId));
             } else {
-                // Empty array provided, means "no matching IDs", return empty immediately or just query normally?
-                // If we want SPECIFIC IDs and get None, we should return empty.
-                return [];
+                return { data: [], lastVisible: null };
             }
         } else {
             constraints.push(where("barberId", "==", barberId));
         }
+    }
+
+    if (lastDoc) {
+        constraints.push(startAfter(lastDoc));
+    }
+
+    if (limitSize) {
+        constraints.push(limit(limitSize));
     }
 
     const q = query(
@@ -128,7 +169,10 @@ export async function getTransactionsByRange(startDate, endDate, barberId = null
     );
 
     const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const data = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    const lastVisible = querySnapshot.docs[querySnapshot.docs.length - 1];
+
+    return { data, lastVisible };
 }
 
 export async function getDailyTransactions() {
@@ -139,7 +183,8 @@ export async function getDailyTransactions() {
     const endOfDay = new Date();
     endOfDay.setHours(23, 59, 59, 999);
 
-    return getTransactionsByRange(startOfDay, endOfDay);
+    const result = await getTransactionsByRange(startOfDay, endOfDay);
+    return result.data;
 }
 
 export async function getBarberIdsByEmail(email) {

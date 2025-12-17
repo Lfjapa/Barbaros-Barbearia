@@ -3,6 +3,8 @@ import {
     onAuthStateChanged,
     signInWithEmailAndPassword,
     signInWithPopup,
+    signInWithRedirect,
+    getRedirectResult,
     signOut
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
@@ -28,27 +30,33 @@ export function AuthProvider({ children }) {
     }
 
     async function loginWithGoogle() {
-        const result = await signInWithPopup(auth, googleProvider);
-        const user = result.user;
+        try {
+            const result = await signInWithPopup(auth, googleProvider);
+            const user = result.user;
 
-        // Check if user exists in Firestore
-        const userDocRef = doc(db, "users", user.uid);
-        const userDoc = await getDoc(userDocRef);
+            const userDocRef = doc(db, "users", user.uid);
+            const userDoc = await getDoc(userDocRef);
 
-        if (!userDoc.exists()) {
-            // New user -> Create as Barber
-            await setDoc(userDocRef, {
-                email: user.email,
-                name: user.displayName,
-                role: 'barber',
-                photoURL: user.photoURL
-            });
-            setUserRole('barber');
-        } else {
-            // Existing user -> Get Role
-            setUserRole(userDoc.data().role);
+            if (!userDoc.exists()) {
+                await setDoc(userDocRef, {
+                    email: user.email,
+                    name: user.displayName,
+                    role: 'barber',
+                    photoURL: user.photoURL
+                });
+                setUserRole('barber');
+            } else {
+                setUserRole(userDoc.data().role);
+            }
+            return result;
+        } catch (error) {
+            // Fallback for browsers que bloqueiam popups (Safari, ITP)
+            if (error?.code === 'auth/popup-blocked' || error?.code === 'auth/cancelled-popup-request') {
+                await signInWithRedirect(auth, googleProvider);
+                return null;
+            }
+            throw error;
         }
-        return result;
     }
 
     async function fetchUserRole(uid) {
@@ -86,6 +94,33 @@ export function AuthProvider({ children }) {
         });
 
         return unsubscribe;
+    }, []);
+
+    // Handle redirect result for Google login (production fallback)
+    useEffect(() => {
+        (async () => {
+            try {
+                const result = await getRedirectResult(auth);
+                if (result?.user) {
+                    const user = result.user;
+                    const userDocRef = doc(db, "users", user.uid);
+                    const userDoc = await getDoc(userDocRef);
+                    if (!userDoc.exists()) {
+                        await setDoc(userDocRef, {
+                            email: user.email,
+                            name: user.displayName,
+                            role: 'barber',
+                            photoURL: user.photoURL
+                        });
+                        setUserRole('barber');
+                    } else {
+                        setUserRole(userDoc.data().role);
+                    }
+                }
+            } catch (e) {
+                // silent
+            }
+        })();
     }, []);
 
     const value = {

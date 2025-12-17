@@ -3,7 +3,8 @@ import { Layout } from '../../components/layout/Navbar';
 import { Card } from '../../components/ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTransactionsByRange, getServices, getBarbers } from '../../services/db';
-import { X, User, Calendar, CreditCard, Scissors, ChevronLeft, ChevronRight } from 'lucide-react';
+import { X, User, Calendar, CreditCard, Scissors, ChevronLeft, ChevronRight, ChevronDown, Download } from 'lucide-react';
+import { Button } from '../../components/ui/Button';
 
 export default function History() {
     const { currentUser, userRole } = useAuth();
@@ -11,111 +12,123 @@ export default function History() {
     const [servicesMap, setServicesMap] = useState({});
     const [barbersMap, setBarbersMap] = useState({});
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [lastDoc, setLastDoc] = useState(null);
+    const [hasMore, setHasMore] = useState(true);
     const [selectedItem, setSelectedItem] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
+    const [filterIds, setFilterIds] = useState(null);
+    const [exporting, setExporting] = useState(false);
 
+    // Reset pagination when date changes
     useEffect(() => {
-        async function fetchData() {
-            if (!currentUser) return;
+        setHistory([]);
+        setLastDoc(null);
+        setHasMore(true);
+        fetchData(true); // true = reset
+    }, [selectedDate, currentUser]);
+
+    async function fetchData(isReset = false) {
+        if (!currentUser) return;
+        
+        if (isReset) {
             setLoading(true);
-            try {
-                // 1. Fetch metadata first to identify the user correctly
+        } else {
+            setLoadingMore(true);
+        }
+
+        try {
+            let idsToUse = isReset ? null : filterIds;
+
+            // 1. Logic to resolve filter IDs (only runs on reset/initial load)
+            if (isReset) {
+                // Fetch metadata if needed
+                let currentServices = servicesMap;
+                let currentBarbers = barbersMap;
+
+                // Always fetch metadata on reset to ensure fresh data for filters
                 const [servicesData, barbersData] = await Promise.all([
                     getServices(),
                     getBarbers()
                 ]);
 
-                // Create Maps
                 const sMap = {};
                 servicesData.forEach(s => sMap[s.id] = s.name);
                 setServicesMap(sMap);
+                currentServices = sMap;
 
                 const bMap = {};
                 barbersData.forEach(b => bMap[b.id] = b.name);
                 setBarbersMap(bMap);
+                currentBarbers = bMap;
 
-                // 2. Determine Barber IDs to filter
-                let barberIdToFilter = null;
-
+                // Determine Filter IDs
                 if (userRole === 'barber') {
-                    // Find all IDs that belong to this user
                     const myIds = new Set([currentUser.uid]);
-
-                    // Normalize helper
                     const normalize = (str) => str ? str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
-
                     const myEmail = normalize(currentUser.email);
                     const myNameRaw = normalize(currentUser.displayName);
-                    const myNameParts = myNameRaw.split(/\s+/).filter(part => part.length > 2); // Split into words, ignore small words like "de", "da"
+                    const myNameParts = myNameRaw.split(/\s+/).filter(part => part.length > 2);
 
                     barbersData.forEach(b => {
-                        // 1. Email Match (Trimmed & Normalized)
                         const bEmail = normalize(b.email);
-                        if (bEmail && bEmail === myEmail) {
-                            myIds.add(b.id);
-                        }
+                        if (bEmail && bEmail === myEmail) myIds.add(b.id);
 
-                        // 2. Name Token Match (Fuzzy)
-                        // If the ADMIN typed "Luiz Felipe Marçal Kosse" and GOOGLE says "Luiz Kosse"
-                        // or GOOGLE says "Luiz Felipe"
-                        // We check how many "significant words" overlap.
                         const bName = normalize(b.name);
                         const bNameParts = bName.split(/\s+/).filter(part => part.length > 2);
-
                         if (myNameParts.length > 0 && bNameParts.length > 0) {
-                            // Count matches
                             const matches = myNameParts.filter(part => bNameParts.includes(part));
-
-                            // If we have at least 2 matching words (First + Last, or First + Middle), consider it a match.
-                            // Or if both only have 1 word and it matches (unlikely but possible).
-                            if (matches.length >= 2) {
-                                myIds.add(b.id);
-                            }
-                            // Special case: If one of them only has 1 word and it matches? Too risky for common names like "Lucas". 
-                            // Require at least 2 words match unless full string matches.
-                            else if (bName === myNameRaw && bName.length > 3) {
-                                myIds.add(b.id);
-                            }
+                            if (matches.length >= 2) myIds.add(b.id);
+                            else if (bName === myNameRaw && bName.length > 3) myIds.add(b.id);
                         }
                     });
-
-                    barberIdToFilter = Array.from(myIds);
+                    idsToUse = Array.from(myIds);
+                    setFilterIds(idsToUse);
+                } else {
+                    idsToUse = null; // Admin sees all
+                    setFilterIds(null);
                 }
-
-                // 3. Fetch Transactions
-                // Define Month Range
-                const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
-                const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59);
-
-                const historyData = await getTransactionsByRange(startOfMonth, endOfMonth, barberIdToFilter);
-
-                // Sort
-                const sortedHistory = historyData.sort((a, b) => {
-                    const dateA = a.date.seconds ? new Date(a.date.seconds * 1000) : new Date(a.date);
-                    const dateB = b.date.seconds ? new Date(b.date.seconds * 1000) : new Date(b.date);
-                    return dateB - dateA;
-                });
-
-                // Format dates for display
-                const formattedHistory = sortedHistory.map(item => {
-                    const d = item.date.seconds ? new Date(item.date.seconds * 1000) : new Date(item.date);
-                    return {
-                        ...item,
-                        displayDate: d.toLocaleDateString('pt-BR'),
-                        displayTime: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                        rawDate: d
-                    };
-                });
-
-                setHistory(formattedHistory);
-            } catch (error) {
-                console.error("Error fetching history:", error);
-            } finally {
-                setLoading(false);
             }
+
+            // 2. Fetch Transactions
+            const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59);
+
+            const result = await getTransactionsByRange(
+                startOfMonth, 
+                endOfMonth, 
+                idsToUse, 
+                isReset ? null : lastDoc, 
+                20 // Limit per page
+            );
+
+            // 3. Format
+            const formattedNewItems = result.data.map(item => {
+                const d = item.date.seconds ? new Date(item.date.seconds * 1000) : new Date(item.date);
+                return {
+                    ...item,
+                    displayDate: d.toLocaleDateString('pt-BR'),
+                    displayTime: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+                    rawDate: d
+                };
+            });
+
+            if (isReset) {
+                setHistory(formattedNewItems);
+            } else {
+                setHistory(prev => [...prev, ...formattedNewItems]);
+            }
+
+            setLastDoc(result.lastVisible);
+            setHasMore(!!result.lastVisible); // If lastVisible is null/undefined, no more pages
+
+        } catch (error) {
+            console.error("Error fetching history:", error);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
         }
-        fetchData();
-    }, [currentUser, selectedDate, userRole]);
+    }
 
     const changeMonth = (offset) => {
         const newDate = new Date(selectedDate);
@@ -123,12 +136,67 @@ export default function History() {
         setSelectedDate(newDate);
     };
 
-    // Calculate totals for the VIEWED month
-    const monthTotal = history.reduce((acc, curr) => acc + curr.total, 0);
+    const handleExport = async () => {
+        setExporting(true);
+        try {
+            const startOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
+            const endOfMonth = new Date(selectedDate.getFullYear(), selectedDate.getMonth() + 1, 0, 23, 59, 59);
+            
+            const result = await getTransactionsByRange(startOfMonth, endOfMonth, filterIds);
+            const data = result.data;
+            
+            const headers = ["Data", "Hora", "Barbeiro", "Serviços", "Valor Total", "Método", "Comissão %", "Comissão R$", "Lucro Casa"];
+            const csvRows = [headers.join(";")];
+            
+            for (const row of data) {
+                const dateObj = row.date.seconds ? new Date(row.date.seconds * 1000) : new Date(row.date);
+                const dateStr = dateObj.toLocaleDateString('pt-BR');
+                const timeStr = dateObj.toLocaleTimeString('pt-BR');
+                const barberName = barbersMap[row.barberId] || "Desconhecido";
+                
+                const serviceNames = (row.serviceIds || []).map(id => servicesMap[id] || id).join(", ");
+                
+                const commissionRate = row.commissionRate || 0.40;
+                const commissionAmount = row.commissionAmount || (row.total * commissionRate);
+                const houseAmount = row.revenueAmount || (row.total - commissionAmount);
+                
+                const values = [
+                    dateStr,
+                    timeStr,
+                    barberName,
+                    serviceNames,
+                    row.total.toFixed(2).replace('.', ','),
+                    row.method,
+                    (commissionRate * 100).toFixed(0) + '%',
+                    commissionAmount.toFixed(2).replace('.', ','),
+                    houseAmount.toFixed(2).replace('.', ',')
+                ];
+                csvRows.push(values.join(";"));
+            }
+            
+            const csvContent = "data:text/csv;charset=utf-8," + csvRows.join("\n");
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", `faturamento_${selectedDate.getMonth()+1}_${selectedDate.getFullYear()}.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            
+        } catch (error) {
+            console.error("Export error:", error);
+        } finally {
+            setExporting(false);
+        }
+    };
 
-    // Commission Estimate (Only for Barbers) - crude 40% calc 
-    // Ideally stored in DB, but calc is fine for now
-    const commissionTotal = monthTotal * 0.40;
+    // Calculate totals for the VIEWED list
+    const monthTotal = history.reduce((acc, curr) => acc + curr.total, 0);
+    // Use stored commissionRate if available, otherwise fallback to 0.40
+    const commissionTotal = history.reduce((acc, curr) => {
+        const rate = curr.commissionRate !== undefined ? curr.commissionRate : 0.40;
+        return acc + (curr.total * rate);
+    }, 0);
 
     if (loading) return (
         <Layout role={userRole}>
@@ -144,166 +212,158 @@ export default function History() {
                     Histórico
                 </h1>
 
-                <div className="flex items-center gap-4 bg-[var(--color-dark-surface)] p-2 rounded-full border border-[var(--color-border)] shadow-md">
-                    <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-[var(--color-dark-bg)] rounded-full transition-colors text-white">
-                        <ChevronLeft size={20} />
-                    </button>
-                    <div className="flex items-center gap-2 px-2 min-w-[140px] justify-center">
-                        <Calendar size={16} className="text-[var(--color-primary)]" />
-                        <span className="font-bold text-white uppercase tracking-wider text-sm">
-                            {selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
-                        </span>
+                <div className="flex items-center gap-3">
+                    <Button 
+                        onClick={handleExport}
+                        disabled={exporting}
+                        className="h-10 px-4 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-dark-bg)] text-white text-xs uppercase font-bold tracking-wider flex items-center gap-2"
+                    >
+                        {exporting ? (
+                            <span className="animate-pulse">...</span>
+                        ) : (
+                            <>
+                                <Download size={16} />
+                                <span className="hidden sm:inline">Exportar</span>
+                            </>
+                        )}
+                    </Button>
+
+                    <div className="flex items-center gap-4 bg-[var(--color-dark-surface)] p-2 rounded-full border border-[var(--color-border)] shadow-md">
+                        <button onClick={() => changeMonth(-1)} className="p-2 hover:bg-[var(--color-dark-bg)] rounded-full transition-colors text-white">
+                            <ChevronLeft size={20} />
+                        </button>
+                        <div className="flex items-center gap-2 px-2 min-w-[140px] justify-center">
+                            <Calendar size={16} className="text-[var(--color-primary)]" />
+                            <span className="font-bold text-white uppercase tracking-wider text-sm">
+                                {selectedDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
+                            </span>
+                        </div>
+                        <button onClick={() => changeMonth(1)} className="p-2 hover:bg-[var(--color-dark-bg)] rounded-full transition-colors text-white">
+                            <ChevronRight size={20} />
+                        </button>
                     </div>
-                    <button onClick={() => changeMonth(1)} className="p-2 hover:bg-[var(--color-dark-bg)] rounded-full transition-colors text-white">
-                        <ChevronRight size={20} />
-                    </button>
                 </div>
             </div>
 
-            {/* Monthly Summary Cards */}
-            <div className="grid grid-cols-2 gap-4 mb-8">
-                <Card className="bg-gradient-to-br from-[var(--color-primary)] to-[#b8952b] border-none text-black col-span-2 md:col-span-1 shadow-lg">
-                    <div className="text-xs font-black uppercase tracking-widest opacity-70 mb-1">Total (Mês)</div>
-                    <div className="text-5xl font-black tracking-tighter">
-                        <span className="text-2xl font-bold align-top mt-1 inline-block mr-1">R$</span>
-                        {monthTotal.toFixed(2)}
-                    </div>
+            {/* Totals Summary */}
+            <div className="grid grid-cols-2 gap-4 mb-6">
+                <Card className="p-4 flex flex-col items-center justify-center border-t-4 border-t-emerald-500">
+                    <span className="text-xs uppercase text-gray-400 font-bold tracking-wider mb-1">Total Exibido</span>
+                    <span className="text-2xl font-black text-emerald-400">
+                        {monthTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                    </span>
                 </Card>
-
-                {/* Show Est. Commission only for Barbers */}
                 {userRole === 'barber' && (
-                    <Card className="bg-[var(--color-dark-surface)] border-[var(--color-border)] col-span-2 md:col-span-1 flex flex-col justify-center">
-                        <div className="text-[10px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-1">Sua Comissão (Estimada 40%)</div>
-                        <div className="text-3xl font-bold text-white">R$ {commissionTotal.toFixed(2)}</div>
-                    </Card>
-                )}
-                {/* For Admin, maybe show Count */}
-                {userRole === 'admin' && (
-                    <Card className="bg-[var(--color-dark-surface)] border-[var(--color-border)] col-span-2 md:col-span-1 flex flex-col justify-center">
-                        <div className="text-[10px] font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-1">Atendimentos</div>
-                        <div className="text-3xl font-bold text-white">{history.length}</div>
+                    <Card className="p-4 flex flex-col items-center justify-center border-t-4 border-t-blue-500">
+                        <span className="text-xs uppercase text-gray-400 font-bold tracking-wider mb-1">Comissão Exibida</span>
+                        <span className="text-2xl font-black text-blue-400">
+                            {commissionTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                        </span>
                     </Card>
                 )}
             </div>
 
             {/* List */}
-            <h2 className="text-sm font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-4 flex items-center gap-2">
-                <span className="w-1.5 h-1.5 bg-[var(--color-primary)] rounded-full"></span>
-                Serviços do Mês
-            </h2>
-
-            <div className="flex flex-col gap-3 pb-safe">
-                {history.length === 0 && (
-                    <div className="text-center py-10 opacity-50 border-2 border-dashed border-[var(--color-border)] rounded-xl">
-                        <p className="text-sm font-medium">Nenhum serviço neste mês.</p>
-                    </div>
+            <div className="space-y-3">
+                {history.length === 0 ? (
+                    <div className="text-center py-10 text-gray-500">Nenhum registro encontrado neste período.</div>
+                ) : (
+                    history.map((item) => (
+                        <div key={item.id} onClick={() => setSelectedItem(item)} className="cursor-pointer">
+                            <Card className="p-4 hover:border-[var(--color-primary)] transition-all group relative overflow-hidden">
+                                <div className="flex justify-between items-start relative z-10">
+                                    <div className="flex gap-3">
+                                        <div className="bg-[var(--color-dark-bg)] p-2 rounded-lg h-fit group-hover:bg-[var(--color-primary)] group-hover:text-black transition-colors">
+                                            <Scissors size={20} />
+                                        </div>
+                                        <div>
+                                            <div className="font-bold text-white flex items-center gap-2">
+                                                {item.serviceIds.map(id => servicesMap[id]).join(', ')}
+                                            </div>
+                                            <div className="text-xs text-gray-400 mt-1 flex items-center gap-3">
+                                                <span className="flex items-center gap-1"><User size={12}/> {barbersMap[item.barberId] || 'Desconhecido'}</span>
+                                                <span className="flex items-center gap-1"><CreditCard size={12}/> {item.method.toUpperCase()}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="text-right">
+                                        <div className="font-bold text-emerald-400 text-lg">
+                                            {item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                        </div>
+                                        <div className="text-xs text-gray-500 mt-1 font-mono">
+                                            {item.displayDate} - {item.displayTime}
+                                        </div>
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    ))
                 )}
-
-                {history.map(item => (
-                    <Card
-                        key={item.id}
-                        onClick={() => setSelectedItem(item)}
-                        className="flex justify-between items-center group hover:border-[var(--color-primary)] transition-colors cursor-pointer active:scale-[0.98]"
-                    >
-                        <div>
-                            <div className="font-bold text-white text-lg">
-                                {/* Show first service name + count if more than 1 */}
-                                {servicesMap[item.serviceIds[0]] || 'Serviço'}
-                                {item.serviceIds.length > 1 && <span className="text-xs text-[var(--color-text-secondary)] ml-2">+{item.serviceIds.length - 1}</span>}
-                            </div>
-                            <div className="text-xs text-[var(--color-text-secondary)] font-medium uppercase tracking-wide mt-1">
-                                {item.displayDate} • {item.displayTime}
-                            </div>
-                            <div className="text-[10px] text-[var(--color-primary)] font-bold uppercase mt-1">
-                                {barbersMap[item.barberId] || 'Barbeiro'}
-                            </div>
-                        </div>
-                        <div className="text-xl font-black text-white">
-                            <span className="text-xs text-gray-500 mr-1 font-normal">R$</span>
-                            {item.total.toFixed(2)}
-                        </div>
-                    </Card>
-                ))}
             </div>
 
-            {/* Detail Modal */}
-            {selectedItem && (
-                <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm" onClick={() => setSelectedItem(null)}>
-                    <div
-                        className="bg-[var(--color-dark-surface)] w-full max-w-sm rounded-3xl border border-[var(--color-primary)] shadow-[0_0_50px_rgba(0,0,0,0.8)] overflow-hidden relative animation-fade-in"
-                        onClick={e => e.stopPropagation()}
+            {/* Load More Button */}
+            {hasMore && (
+                <div className="mt-6 flex justify-center">
+                    <Button 
+                        onClick={() => fetchData(false)} 
+                        disabled={loadingMore}
+                        className="bg-[var(--color-dark-surface)] hover:bg-[var(--color-dark-bg)] text-white border border-[var(--color-border)] w-full md:w-auto min-w-[200px]"
                     >
-                        {/* Header */}
-                        <div className="bg-[var(--color-primary)] p-4 text-center relative">
-                            <h3 className="text-black font-black uppercase tracking-widest text-sm pr-10">Detalhes do Atendimento</h3>
-                            <button
-                                onClick={() => setSelectedItem(null)}
-                                className="absolute top-1/2 -translate-y-1/2 right-4 p-1 bg-black/10 rounded-full hover:bg-black/20 text-black"
-                            >
-                                <X size={20} />
-                            </button>
-                        </div>
-
-                        <div className="p-6 space-y-6">
-
-                            {/* Value */}
-                            <div className="text-center">
-                                <span className="text-sm text-[var(--color-text-secondary)] uppercase tracking-wider block mb-1">Valor Total</span>
-                                <span className="text-4xl font-black text-[var(--color-primary)]">R$ {selectedItem.total.toFixed(2)}</span>
+                        {loadingMore ? (
+                            <span className="animate-pulse">Carregando...</span>
+                        ) : (
+                            <div className="flex items-center gap-2">
+                                <ChevronDown size={16} />
+                                Carregar Mais
                             </div>
+                        )}
+                    </Button>
+                </div>
+            )}
 
-                            <div className="space-y-4">
-                                <div className="flex items-center gap-3 p-3 bg-[var(--color-dark-bg)] rounded-xl border border-[var(--color-border)]">
-                                    <User className="text-[var(--color-primary)]" size={20} />
-                                    <div>
-                                        <div className="text-[10px] uppercase text-[var(--color-text-secondary)] font-bold">Barbeiro</div>
-                                        <div className="font-bold text-white uppercase">{barbersMap[selectedItem.barberId] || 'Desconhecido'}</div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-3 bg-[var(--color-dark-bg)] rounded-xl border border-[var(--color-border)]">
-                                    <Calendar className="text-[var(--color-primary)]" size={20} />
-                                    <div>
-                                        <div className="text-[10px] uppercase text-[var(--color-text-secondary)] font-bold">Data & Hora</div>
-                                        <div className="font-bold text-white uppercase">{selectedItem.displayDate} - {selectedItem.displayTime}</div>
-                                    </div>
-                                </div>
-
-                                <div className="flex items-center gap-3 p-3 bg-[var(--color-dark-bg)] rounded-xl border border-[var(--color-border)]">
-                                    <CreditCard className="text-[var(--color-primary)]" size={20} />
-                                    <div>
-                                        <div className="text-[10px] uppercase text-[var(--color-text-secondary)] font-bold">Pagamento</div>
-                                        <div className="font-bold text-white uppercase">{selectedItem.method}</div>
-                                    </div>
-                                </div>
+            {/* Modal Detail */}
+            {selectedItem && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedItem(null)}>
+                    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-6 rounded-2xl w-full max-w-md relative shadow-2xl" onClick={e => e.stopPropagation()}>
+                        <button 
+                            onClick={() => setSelectedItem(null)}
+                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
+                        >
+                            <X size={20} />
+                        </button>
+                        
+                        <h2 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">Detalhes da Venda</h2>
+                        
+                        <div className="space-y-4">
+                            <div className="flex justify-between py-2 border-b border-white/5">
+                                <span className="text-gray-400">Data</span>
+                                <span className="font-mono text-white">{selectedItem.displayDate} às {selectedItem.displayTime}</span>
                             </div>
-
-                            {/* Services List */}
-                            <div>
-                                <h4 className="flex items-center gap-2 text-xs font-bold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3">
-                                    <Scissors size={14} /> Serviços Realizados
-                                </h4>
-                                <ul className="space-y-2">
-                                    {selectedItem.serviceIds.map((id, index) => (
-                                        <li key={index} className="flex items-center justify-between p-2 border-b border-[var(--color-border)] last:border-0">
-                                            <span className="text-white font-medium">{servicesMap[id] || 'Serviço Removido'}</span>
-                                            <Check size={16} className="text-[var(--color-primary)]" />
-                                        </li>
-                                    ))}
-                                </ul>
+                            <div className="flex justify-between py-2 border-b border-white/5">
+                                <span className="text-gray-400">Serviços</span>
+                                <span className="text-white text-right max-w-[60%]">{selectedItem.serviceIds.map(id => servicesMap[id]).join(', ')}</span>
+                            </div>
+                            <div className="flex justify-between py-2 border-b border-white/5">
+                                <span className="text-gray-400">Profissional</span>
+                                <span className="text-white">{barbersMap[selectedItem.barberId]}</span>
+                            </div>
+                            <div className="flex justify-between py-2 border-b border-white/5">
+                                <span className="text-gray-400">Pagamento</span>
+                                <span className="text-white uppercase font-bold text-xs bg-white/10 px-2 py-1 rounded">{selectedItem.method}</span>
+                            </div>
+                            
+                            <div className="mt-8 pt-4 border-t border-dashed border-white/20">
+                                <div className="flex justify-between items-end">
+                                    <span className="text-gray-400">Valor Total</span>
+                                    <span className="text-3xl font-black text-emerald-400">
+                                        {selectedItem.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                    </span>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
             )}
         </Layout>
-    );
-}
-// Helper for check icon in modal
-function Check({ size, className }) {
-    return (
-        <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" className={className}>
-            <polyline points="20 6 9 17 4 12"></polyline>
-        </svg>
     );
 }
