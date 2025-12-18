@@ -11,6 +11,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
+    const [imageError, setImageError] = useState(false);
 
     const handleLogin = async (e) => {
         e.preventDefault();
@@ -44,12 +45,23 @@ export default function Login() {
 
             <div className="w-full max-w-md relative z-10">
                 <div className="text-center mb-10">
-                    <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--color-dark-surface)] border-2 border-[var(--color-primary)] mb-6 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
-                        <Scissors className="w-10 h-10 text-[var(--color-primary)]" />
-                    </div>
-                    <h1 className="text-3xl font-black tracking-widest text-white uppercase mb-2" style={{ fontFamily: 'var(--font-family)' }}>
-                        Barbaros <span className="text-[var(--color-primary)]">Barbearia</span>
-                    </h1>
+                    {!imageError ? (
+                        <img 
+                            src="/logo-barbaros.png" 
+                            alt="Barbaros Barbearia" 
+                            className="w-full max-w-[320px] mx-auto mb-2 drop-shadow-[0_0_15px_rgba(212,175,55,0.2)] animate-fade-in hover:scale-105 transition-transform duration-500"
+                            onError={() => setImageError(true)}
+                        />
+                    ) : (
+                        <>
+                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--color-dark-surface)] border-2 border-[var(--color-primary)] mb-6 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
+                                <Scissors className="w-10 h-10 text-[var(--color-primary)]" />
+                            </div>
+                            <h1 className="text-3xl font-black tracking-widest text-white uppercase mb-2" style={{ fontFamily: 'var(--font-family)' }}>
+                                Barbaros <span className="text-[var(--color-primary)]">Barbearia</span>
+                            </h1>
+                        </>
+                    )}
                     <p className="text-[var(--color-text-secondary)] text-sm tracking-widest uppercase opacity-80">
                         Sistema de Gestão Premium
                     </p>
