@@ -149,11 +149,11 @@ export default function InlineEditTransaction({ transaction, onCancel, onUpdate,
                                     className={`w-full p-2.5 rounded-lg border transition-all flex justify-between items-center group text-xs
                                         ${isSelected
                                             ? 'bg-zinc-800 border-[var(--color-primary)] shadow-[inset_0_0_0_1px_var(--color-primary)]'
-                                            : 'bg-[var(--color-dark-bg)] border-[var(--color-border)]'
+                                            : 'bg-zinc-900 border-white/10 hover:border-gray-500'
                                         }`}
                                 >
-                                    <span className={`font-medium ${isSelected ? 'text-white' : 'text-gray-300'}`}>{service.name}</span>
-                                    <span className={`font-bold ${isSelected ? 'text-[var(--color-primary)]' : 'text-gray-400'}`}>
+                                    <span className={`font-medium ${isSelected ? 'text-white' : 'text-gray-100'}`}>{service.name}</span>
+                                    <span className={`font-bold ${isSelected ? 'text-[var(--color-primary)]' : 'text-gray-300'}`}>
                                         {service.price.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
                                     </span>
                                 </button>
