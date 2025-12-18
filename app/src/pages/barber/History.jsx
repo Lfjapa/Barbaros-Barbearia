@@ -92,11 +92,22 @@ export default function History() {
             // 3. Format
             const formattedNewItems = result.data.map(item => {
                 const d = item.date.seconds ? new Date(item.date.seconds * 1000) : new Date(item.date);
+                
+                let updatedInfo = null;
+                if (item.updatedAt) {
+                    const u = item.updatedAt.seconds ? new Date(item.updatedAt.seconds * 1000) : new Date(item.updatedAt);
+                    updatedInfo = {
+                        displayDate: u.toLocaleDateString('pt-BR'),
+                        displayTime: u.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+                    };
+                }
+
                 return {
                     ...item,
                     displayDate: d.toLocaleDateString('pt-BR'),
                     displayTime: d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-                    rawDate: d
+                    rawDate: d,
+                    updatedInfo
                 };
             });
 
@@ -325,6 +336,12 @@ export default function History() {
                                             <div className="text-xs text-gray-500 mt-1 font-mono">
                                                 {item.displayDate} - {item.displayTime}
                                             </div>
+                                            {item.updatedInfo && (
+                                                <div className="text-[10px] text-amber-500/80 mt-0.5 font-mono flex items-center justify-end gap-1" title="Editado">
+                                                    <Pencil size={10} />
+                                                    {item.updatedInfo.displayDate} - {item.updatedInfo.displayTime}
+                                                </div>
+                                            )}
                                         </div>
                                     </div>
                                 </Card>

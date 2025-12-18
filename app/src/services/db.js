@@ -114,7 +114,10 @@ export async function updateTransaction(transactionId, transactionData) {
     // If amounts are provided, use them. Otherwise, let backend logic decide or keep existing.
     // Ideally, the caller should do the math if logic is complex (per-service).
     
-    let updates = { ...transactionData };
+    let updates = { 
+        ...transactionData,
+        updatedAt: Timestamp.now()
+    };
     
     // If total is changing but no commission info provided, we might have an issue if we don't know the rate.
     // However, usually updateTransaction is called with full context or specific fields.
