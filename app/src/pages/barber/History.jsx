@@ -237,7 +237,7 @@ export default function History() {
                     <Button 
                         onClick={handleExport}
                         disabled={exporting}
-                        className="h-10 px-4 bg-[var(--color-surface)] border border-[var(--color-border)] hover:bg-[var(--color-dark-bg)] text-white text-xs uppercase font-bold tracking-wider flex items-center gap-2"
+                        className="h-10 px-4 bg-[var(--color-surface)] border border-white hover:bg-[var(--color-dark-bg)] !text-white text-xs uppercase font-bold tracking-wider flex items-center gap-2"
                     >
                         {exporting ? (
                             <span className="animate-pulse">...</span>
