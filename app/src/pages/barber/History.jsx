@@ -5,7 +5,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import { getTransactionsByRange, getServices, getBarbers } from '../../services/db';
 import { X, User, Calendar, CreditCard, Scissors, ChevronLeft, ChevronRight, ChevronDown, Download, Pencil } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
-import EditTransactionModal from '../../components/EditTransactionModal';
+import InlineEditTransaction from '../../components/InlineEditTransaction';
 
 export default function History() {
     const { currentUser, userRole } = useAuth();
@@ -300,33 +300,49 @@ export default function History() {
                     <div className="text-center py-10 text-gray-500">Nenhum registro encontrado neste período.</div>
                 ) : (
                     history.map((item) => (
-                        <div key={item.id} onClick={() => setEditingItem(item)} className="cursor-pointer">
-                            <Card className="p-4 hover:border-[var(--color-primary)] transition-all group relative overflow-hidden">
-                                <div className="flex justify-between items-start relative z-10">
-                                    <div className="flex gap-3">
-                                        <div className="bg-[var(--color-dark-bg)] p-2 rounded-lg h-fit group-hover:bg-[var(--color-primary)] group-hover:text-black transition-colors">
-                                            <Scissors size={20} />
-                                        </div>
-                                        <div>
-                                            <div className="font-bold text-white flex items-center gap-2">
-                                                {item.serviceIds.map(id => servicesMap[id]).join(', ')}
+                        <div key={item.id}>
+                            <div onClick={() => setEditingItem(editingItem?.id === item.id ? null : item)} className="cursor-pointer">
+                                <Card className={`p-4 transition-all group relative overflow-hidden ${editingItem?.id === item.id ? 'border-[var(--color-primary)] bg-[var(--color-dark-surface)]' : 'hover:border-[var(--color-primary)]'}`}>
+                                    <div className="flex justify-between items-start relative z-10">
+                                        <div className="flex gap-3">
+                                            <div className={`p-2 rounded-lg h-fit transition-colors ${editingItem?.id === item.id ? 'bg-[var(--color-primary)] text-black' : 'bg-[var(--color-dark-bg)] group-hover:bg-[var(--color-primary)] group-hover:text-black'}`}>
+                                                <Scissors size={20} />
                                             </div>
-                                            <div className="text-xs text-gray-400 mt-1 flex items-center gap-3">
-                                                <span className="flex items-center gap-1"><User size={12}/> {barbersMap[item.barberId] || 'Desconhecido'}</span>
-                                                <span className="flex items-center gap-1"><CreditCard size={12}/> {(item.method || 'Dinheiro').toUpperCase()}</span>
+                                            <div>
+                                                <div className="font-bold text-white flex items-center gap-2">
+                                                    {item.serviceIds.map(id => servicesMap[id]).join(', ')}
+                                                </div>
+                                                <div className="text-xs text-gray-400 mt-1 flex items-center gap-3">
+                                                    <span className="flex items-center gap-1"><User size={12}/> {barbersMap[item.barberId] || 'Desconhecido'}</span>
+                                                    <span className="flex items-center gap-1"><CreditCard size={12}/> {(item.method || 'Dinheiro').toUpperCase()}</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div className="text-right">
+                                            <div className="font-bold text-emerald-400 text-lg">
+                                                {item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                            </div>
+                                            <div className="text-xs text-gray-500 mt-1 font-mono">
+                                                {item.displayDate} - {item.displayTime}
                                             </div>
                                         </div>
                                     </div>
-                                    <div className="text-right">
-                                        <div className="font-bold text-emerald-400 text-lg">
-                                            {item.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                        </div>
-                                        <div className="text-xs text-gray-500 mt-1 font-mono">
-                                            {item.displayDate} - {item.displayTime}
-                                        </div>
-                                    </div>
-                                </div>
-                            </Card>
+                                </Card>
+                            </div>
+
+                            {/* Inline Edit Form */}
+                            {editingItem?.id === item.id && (
+                                <InlineEditTransaction 
+                                    transaction={item}
+                                    services={rawServices}
+                                    barbers={rawBarbers}
+                                    onCancel={() => setEditingItem(null)}
+                                    onUpdate={() => {
+                                        setEditingItem(null);
+                                        fetchData(true);
+                                    }}
+                                />
+                            )}
                         </div>
                     ))
                 )}
@@ -351,16 +367,6 @@ export default function History() {
                     </Button>
                 </div>
             )}
-
-            {/* Modal Detail */}
-            <EditTransactionModal 
-                isOpen={!!editingItem}
-                transaction={editingItem}
-                services={rawServices}
-                barbers={rawBarbers}
-                onClose={() => setEditingItem(null)}
-                onUpdate={() => fetchData(true)}
-            />
         </Layout>
     );
 }
