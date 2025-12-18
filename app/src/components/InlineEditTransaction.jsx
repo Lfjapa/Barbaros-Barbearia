@@ -127,7 +127,7 @@ export default function InlineEditTransaction({ transaction, onCancel, onUpdate,
                                 className={`p-2 rounded-lg border text-xs font-bold transition-all text-left truncate
                                     ${selectedBarber === barber.id
                                         ? 'bg-[var(--color-primary)] border-[var(--color-primary)] text-black'
-                                        : 'bg-[var(--color-dark-bg)] border-[var(--color-border)] text-gray-300'
+                                        : 'bg-white border-white text-zinc-800 hover:bg-gray-100'
                                     }`}
                             >
                                 {barber.name.split(' ')[0]}
