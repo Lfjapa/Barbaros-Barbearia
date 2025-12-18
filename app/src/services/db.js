@@ -99,14 +99,19 @@ export async function addTransaction(transactionData) {
         revenueAmount = total - commissionAmount;
     }
 
-    const docRef = await addDoc(collection(db, "transactions"), {
+    const transactionPayload = {
         ...transactionData,
         total,
-        commissionRate, // Store the rate used (might be mixed/undefined if calculated per service)
         commissionAmount,
         revenueAmount,
         date: Timestamp.now()
-    });
+    };
+
+    if (commissionRate !== undefined) {
+        transactionPayload.commissionRate = commissionRate;
+    }
+
+    const docRef = await addDoc(collection(db, "transactions"), transactionPayload);
     return docRef.id;
 }
 

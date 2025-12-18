@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react';
 import { Layout } from '../../components/layout/Navbar';
 import { Card } from '../../components/ui/Card';
 import { getTransactionsByRange, getBarbers } from '../../services/db';
-import { ChevronLeft, ChevronRight, Calendar, User, DollarSign, TrendingUp } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { ChevronLeft, ChevronRight, Calendar, User, DollarSign } from 'lucide-react';
 
 export default function Dashboard() {
     const [selectedDate, setSelectedDate] = useState(new Date());
@@ -136,57 +135,14 @@ export default function Dashboard() {
                 </Card>
 
                 {/* 3. Commission (40%) */}
-                <Card className="border-none bg-[var(--color-dark-surface)] border-l-4 border-[var(--color-primary)]">
-                    <div className="text-xs text-[var(--color-primary)] font-bold uppercase tracking-widest mb-2">Comissões a Pagar (40%)</div>
-                    <div className="text-3xl font-black text-white">{formatMoney(metrics.monthCommission)}</div>
-                    <div className="text-[10px] text-gray-500 mt-1 uppercase">Total a repassar aos barbeiros</div>
-                </Card>
-            </div>
-
-            {/* Revenue Chart */}
-            <Card className="mb-8 p-6">
-                <div className="flex items-center justify-between mb-6">
-                    <h2 className="text-xl font-bold text-white flex items-center gap-2">
-                        <TrendingUp size={24} className="text-[var(--color-primary)]" />
-                        Evolução Diária
-                    </h2>
-                </div>
-                <div className="h-[300px] w-full">
-                    <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={metrics.dailyData}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#333" />
-                            <XAxis 
-                                dataKey="day" 
-                                stroke="#888" 
-                                fontSize={12}
-                                tickLine={false}
-                                axisLine={false}
-                            />
-                            <YAxis 
-                                stroke="#888" 
-                                fontSize={12}
-                                tickFormatter={(value) => `R$${value}`}
-                                tickLine={false}
-                                axisLine={false}
-                            />
-                            <Tooltip 
-                                contentStyle={{ backgroundColor: '#1a1a1a', border: '1px solid #333', borderRadius: '8px' }}
-                                itemStyle={{ color: '#fff' }}
-                                formatter={(value) => [formatMoney(value), 'Faturamento']}
-                                labelFormatter={(label) => `Dia ${label}`}
-                            />
-                            <Bar 
-                                dataKey="total" 
-                                fill="var(--color-primary)" 
-                                radius={[4, 4, 0, 0]}
-                                maxBarSize={50}
-                            />
-                        </BarChart>
-                    </ResponsiveContainer>
-                </div>
+            <Card className="border-none bg-[var(--color-dark-surface)] border-l-4 border-[var(--color-primary)]">
+                <div className="text-xs text-[var(--color-primary)] font-bold uppercase tracking-widest mb-2">Comissões a Pagar (40%)</div>
+                <div className="text-3xl font-black text-white">{formatMoney(metrics.monthCommission)}</div>
+                <div className="text-[10px] text-gray-500 mt-1 uppercase">Total a repassar aos barbeiros</div>
             </Card>
+        </div>
 
-            {/* Barber Breakdown */}
+        {/* Barber Breakdown */}
             <h2 className="text-lg font-bold text-[var(--color-text-secondary)] uppercase tracking-widest mb-4 flex items-center gap-2 border-b border-[var(--color-border)] pb-2">
                 <User size={18} /> Pagamentos por Barbeiro
             </h2>
