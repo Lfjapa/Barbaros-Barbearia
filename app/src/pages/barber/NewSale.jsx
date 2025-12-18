@@ -76,8 +76,15 @@ export default function NewSale() {
             const selectedServicesData = services.filter(s => selectedServices.includes(s.id));
             
             const commissionAmount = selectedServicesData.reduce((acc, service) => {
-                const rate = (service.commission !== undefined ? service.commission : 40) / 100;
-                return acc + (service.price * rate);
+                let rate = 40; // Default
+                if (service.commission !== undefined && service.commission !== null && service.commission !== '') {
+                    const commString = String(service.commission).replace(',', '.');
+                    const parsed = parseFloat(commString);
+                    if (!isNaN(parsed)) {
+                        rate = parsed;
+                    }
+                }
+                return acc + (service.price * (rate / 100));
             }, 0);
 
             const revenueAmount = totalValue - commissionAmount;
