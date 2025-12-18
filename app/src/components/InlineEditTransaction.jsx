@@ -165,15 +165,15 @@ export default function InlineEditTransaction({ transaction, onCancel, onUpdate,
                 {/* Payment Method */}
                 <div>
                     <label className="text-[10px] font-bold text-gray-400 uppercase tracking-wider block mb-2">Pagamento</label>
-                    <div className="grid grid-cols-3 gap-2">
-                        {['dinheiro', 'pix', 'cartao'].map(method => (
+                    <div className="grid grid-cols-2 gap-2">
+                        {['dinheiro', 'pix', 'debito', 'credito'].map(method => (
                             <button
                                 key={method}
                                 onClick={() => setPaymentMethod(method)}
                                 className={`p-2 rounded-lg border text-[10px] font-bold uppercase tracking-wider transition-all
                                     ${paymentMethod === method
-                                        ? 'bg-white text-black border-white'
-                                        : 'bg-[var(--color-dark-bg)] border-[var(--color-border)] text-gray-300'
+                                        ? 'bg-[var(--color-primary)] text-black border-[var(--color-primary)]'
+                                        : 'bg-white text-zinc-800 border-white hover:bg-gray-100'
                                     }`}
                             >
                                 {method}

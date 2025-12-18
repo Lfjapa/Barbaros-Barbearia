@@ -4,6 +4,7 @@ import Login from './pages/Login';
 import NewSale from './pages/barber/NewSale';
 import History from './pages/barber/History';
 import Dashboard from './pages/admin/Dashboard';
+import Revenue from './pages/admin/Revenue';
 import Services from './pages/admin/Services';
 import Barbers from './pages/admin/Barbers';
 import { Toaster } from 'sonner';
@@ -31,6 +32,7 @@ function App() {
           <PrivateRoute allowedRoles={['admin']}>
             <Routes>
               <Route path="/" element={<Dashboard />} />
+              <Route path="/revenue" element={<Revenue />} />
               <Route path="/history" element={<History />} />
               <Route path="/services" element={<Services />} />
               <Route path="/barbers" element={<Barbers />} />

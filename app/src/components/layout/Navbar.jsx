@@ -50,6 +50,13 @@ export function Navbar({ role: propRole }) {
                                             DASHBOARD
                                         </Link>
                                         <Link
+                                            to="/admin/revenue"
+                                            onClick={() => setIsMenuOpen(false)}
+                                            className="px-5 py-4 text-sm font-bold text-white hover:bg-[var(--color-dark-bg)] hover:text-[var(--color-primary)] transition-colors border-b border-[var(--color-border)] whitespace-nowrap flex items-center gap-2"
+                                        >
+                                            FATURAMENTO
+                                        </Link>
+                                        <Link
                                             to="/admin/history"
                                             onClick={() => setIsMenuOpen(false)}
                                             className="px-5 py-4 text-sm font-bold text-white hover:bg-[var(--color-dark-bg)] hover:text-[var(--color-primary)] transition-colors border-b border-[var(--color-border)] whitespace-nowrap flex items-center gap-2"
