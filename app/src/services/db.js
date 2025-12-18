@@ -127,6 +127,10 @@ export async function updateTransaction(transactionId, transactionData) {
     await updateDoc(docRef, updates);
 }
 
+export async function deleteTransaction(transactionId) {
+    await deleteDoc(doc(db, "transactions", transactionId));
+}
+
 export async function getHistory(barberId) {
     // If barberId is provided, filter by it. Otherwise show all
     let constraints = [orderBy("date", "desc")];

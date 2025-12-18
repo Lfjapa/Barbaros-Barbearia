@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { X, Save, Scissors, Trash2 } from 'lucide-react';
+import { X, Save, Scissors, Trash2, AlertTriangle } from 'lucide-react';
 import { Button } from './ui/Button';
-import { getServices, getBarbers, updateTransaction } from '../services/db';
+import { getServices, getBarbers, updateTransaction, deleteTransaction } from '../services/db';
 import { toast } from 'sonner';
 
 export default function InlineEditTransaction({ transaction, onCancel, onUpdate, services, barbers }) {
@@ -14,6 +14,7 @@ export default function InlineEditTransaction({ transaction, onCancel, onUpdate,
     const [selectedServices, setSelectedServices] = useState([]);
     const [paymentMethod, setPaymentMethod] = useState('pix');
     const [currentTotal, setCurrentTotal] = useState(0);
+    const [isDeleting, setIsDeleting] = useState(false);
 
     // Load Data
     useEffect(() => {
@@ -102,6 +103,21 @@ export default function InlineEditTransaction({ transaction, onCancel, onUpdate,
         }
     };
 
+    const handleDelete = async () => {
+        setLoading(true);
+        try {
+            await deleteTransaction(transaction.id);
+            toast.success("Venda excluída com sucesso!");
+            onUpdate();
+        } catch (error) {
+            console.error(error);
+            toast.error("Erro ao excluir venda");
+        } finally {
+            setLoading(false);
+            setIsDeleting(false);
+        }
+    };
+
     return (
         <div className="mt-2 bg-[var(--color-surface)] border border-[var(--color-primary)] rounded-xl overflow-hidden animate-in slide-in-from-top-2 shadow-2xl">
             {/* Header */}
@@ -185,29 +201,65 @@ export default function InlineEditTransaction({ transaction, onCancel, onUpdate,
 
             {/* Footer */}
             <div className="p-4 border-t border-[var(--color-border)] bg-[var(--color-dark-surface)]">
-                <div className="flex justify-between items-center mb-4">
-                    <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Total</span>
-                    <span className="text-2xl font-black text-emerald-400">
-                        {currentTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                    </span>
-                </div>
+                {isDeleting ? (
+                    <div className="flex flex-col gap-3 animate-in fade-in">
+                        <div className="flex items-center gap-2 text-[var(--color-error)] bg-red-500/10 p-3 rounded-lg border border-red-500/20">
+                            <AlertTriangle size={18} />
+                            <span className="text-xs font-bold">Tem certeza que deseja excluir?</span>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <Button 
+                                variant="outline"
+                                onClick={() => setIsDeleting(false)}
+                                className="h-10 text-xs font-bold uppercase tracking-wider border-[var(--color-border)] text-white hover:bg-[var(--color-dark-bg)]"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                onClick={handleDelete} 
+                                disabled={loading}
+                                className="h-10 text-xs font-bold uppercase tracking-wider bg-[var(--color-error)] hover:bg-red-600 text-white border-none"
+                            >
+                                {loading ? '...' : 'Confirmar Exclusão'}
+                            </Button>
+                        </div>
+                    </div>
+                ) : (
+                    <>
+                        <div className="flex justify-between items-center mb-4">
+                            <span className="text-xs text-gray-400 uppercase tracking-wider font-bold">Total</span>
+                            <span className="text-2xl font-black text-emerald-400">
+                                {currentTotal.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                            </span>
+                        </div>
 
-                <div className="grid grid-cols-2 gap-3">
-                     <Button 
-                        variant="outline"
-                        onClick={onCancel}
-                        className="h-10 text-xs font-bold uppercase tracking-wider border-[var(--color-border)] hover:bg-white hover:text-black"
-                    >
-                        Cancelar
-                    </Button>
-                    <Button 
-                        onClick={handleSave} 
-                        disabled={loading}
-                        className="h-10 text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 border-emerald-500"
-                    >
-                        {loading ? '...' : 'Salvar'}
-                    </Button>
-                </div>
+                        <div className="grid grid-cols-[auto_1fr_1fr] gap-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => setIsDeleting(true)}
+                                className="h-10 px-3 text-[var(--color-error)] border-[var(--color-error)] hover:bg-[var(--color-error)] hover:text-white transition-colors"
+                                title="Excluir Venda"
+                            >
+                                <Trash2 size={16} />
+                            </Button>
+                            
+                            <Button 
+                                variant="outline"
+                                onClick={onCancel}
+                                className="h-10 text-xs font-bold uppercase tracking-wider border-[var(--color-border)] text-zinc-300 hover:bg-white hover:text-black"
+                            >
+                                Cancelar
+                            </Button>
+                            <Button 
+                                onClick={handleSave} 
+                                disabled={loading}
+                                className="h-10 text-xs font-bold uppercase tracking-wider bg-emerald-600 hover:bg-emerald-500 border-emerald-500 text-white"
+                            >
+                                {loading ? '...' : 'Salvar'}
+                            </Button>
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
