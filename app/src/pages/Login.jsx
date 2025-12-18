@@ -44,30 +44,30 @@ export default function Login() {
             <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-[var(--color-primary)] rounded-full mix-blend-screen filter blur-[150px] opacity-10 animate-pulse"></div>
 
             <div className="w-full max-w-md relative z-10">
-                <div className="text-center mb-10">
+                <div className="text-center mb-8 relative">
                     {!imageError ? (
-                        <img 
-                            src="/logo-barbaros.png" 
-                            alt="Barbaros Barbearia" 
-                            className="w-full max-w-[320px] mx-auto mb-2 drop-shadow-[0_0_15px_rgba(212,175,55,0.2)] animate-fade-in hover:scale-105 transition-transform duration-500"
-                            onError={() => setImageError(true)}
-                        />
+                        <div className="relative inline-block group">
+                            <div className="absolute inset-0 bg-[var(--color-primary)] opacity-20 blur-3xl rounded-full group-hover:opacity-30 transition-opacity duration-700"></div>
+                            <img 
+                                src="/logo-barbaros.png" 
+                                alt="Barbaros Barbearia" 
+                                className="w-full max-w-[420px] mx-auto relative z-10 drop-shadow-2xl rounded-2xl border border-white/5 animate-fade-in"
+                                onError={() => setImageError(true)}
+                            />
+                        </div>
                     ) : (
                         <>
-                            <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-[var(--color-dark-surface)] border-2 border-[var(--color-primary)] mb-6 shadow-[0_0_30px_rgba(212,175,55,0.2)]">
-                                <Scissors className="w-10 h-10 text-[var(--color-primary)]" />
+                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--color-dark-surface)] border-2 border-[var(--color-primary)] mb-6 shadow-[0_0_40px_rgba(212,175,55,0.3)]">
+                                <Scissors className="w-12 h-12 text-[var(--color-primary)]" />
                             </div>
-                            <h1 className="text-3xl font-black tracking-widest text-white uppercase mb-2" style={{ fontFamily: 'var(--font-family)' }}>
+                            <h1 className="text-4xl font-black tracking-[0.2em] text-white uppercase mb-2" style={{ fontFamily: 'var(--font-family)' }}>
                                 Barbaros <span className="text-[var(--color-primary)]">Barbearia</span>
                             </h1>
                         </>
                     )}
-                    <p className="text-[var(--color-text-secondary)] text-sm tracking-widest uppercase opacity-80">
-                        Sistema de Gestão Premium
-                    </p>
                 </div>
 
-                <div className="bg-[var(--color-dark-surface)]/80 backdrop-blur-xl p-8 rounded-2xl border border-[var(--color-border)] shadow-2xl">
+                <div className="bg-[var(--color-dark-surface)]/90 backdrop-blur-2xl p-8 rounded-3xl border border-[var(--color-border)] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                     {error && (
                         <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-lg text-center font-medium">
                             {error}
@@ -76,24 +76,24 @@ export default function Login() {
 
                     <form onSubmit={handleLogin} className="space-y-6">
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider ml-1">Email</label>
+                            <label className="text-[10px] font-black text-[var(--color-primary)] uppercase tracking-[0.2em] ml-2">Email</label>
                             <input
                                 type="email"
                                 value={email}
                                 onChange={e => setEmail(e.target.value)}
-                                className="w-full bg-[var(--color-dark-bg)]/50 border border-[var(--color-border)] text-white p-4 rounded-xl outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all placeholder-gray-600"
+                                className="w-full bg-[var(--color-dark-bg)] border border-[var(--color-border)] text-white p-4 rounded-xl outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all placeholder-gray-700 shadow-inner"
                                 placeholder="seu@email.com"
                                 required
                             />
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-[var(--color-primary)] uppercase tracking-wider ml-1">Senha</label>
+                            <label className="text-[10px] font-black text-[var(--color-primary)] uppercase tracking-[0.2em] ml-2">Senha</label>
                             <input
                                 type="password"
                                 value={password}
                                 onChange={e => setPassword(e.target.value)}
-                                className="w-full bg-[var(--color-dark-bg)]/50 border border-[var(--color-border)] text-white p-4 rounded-xl outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all placeholder-gray-600"
+                                className="w-full bg-[var(--color-dark-bg)] border border-[var(--color-border)] text-white p-4 rounded-xl outline-none focus:border-[var(--color-primary)] focus:ring-1 focus:ring-[var(--color-primary)] transition-all placeholder-gray-700 shadow-inner"
                                 placeholder="••••••••"
                                 required
                             />
@@ -102,13 +102,13 @@ export default function Login() {
                         <Button
                             type="submit"
                             disabled={loading}
-                            className="w-full h-14 text-lg font-bold uppercase tracking-wider shadow-lg hover:shadow-[0_0_20px_rgba(212,175,55,0.4)] transition-all duration-300"
+                            className="w-full h-14 text-sm font-black uppercase tracking-[0.15em] shadow-[0_10px_30px_rgba(212,175,55,0.15)] hover:shadow-[0_10px_40px_rgba(212,175,55,0.3)] hover:-translate-y-0.5 transition-all duration-300 bg-gradient-to-r from-[var(--color-primary)] to-[#b8952f] text-black rounded-xl"
                         >
                             {loading ? 'Aguarde...' : 'Entrar no Sistema'}
                         </Button>
                     </form>
 
-                    <div className="my-8 flex items-center gap-4 opacity-30">
+                    <div className="my-8 flex items-center gap-4 opacity-20">
                         <div className="h-px bg-white flex-1"></div>
                         <span className="text-xs font-medium uppercase text-white">Ou acesso rápido</span>
                         <div className="h-px bg-white flex-1"></div>
