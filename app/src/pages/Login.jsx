@@ -38,36 +38,30 @@ export default function Login() {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-6 bg-[var(--color-dark-bg)] relative overflow-hidden">
-            {/* Background Decor - Subtle Glow */}
-            <div className="absolute top-[-20%] left-[-20%] w-[500px] h-[500px] bg-[var(--color-primary)] rounded-full mix-blend-screen filter blur-[150px] opacity-10 animate-pulse"></div>
-            <div className="absolute bottom-[-20%] right-[-20%] w-[500px] h-[500px] bg-[var(--color-primary)] rounded-full mix-blend-screen filter blur-[150px] opacity-10 animate-pulse"></div>
-
-            <div className="w-full max-w-md relative z-10">
-                <div className="text-center mb-8 relative">
-                    {!imageError ? (
-                        <div className="relative inline-block group">
-                            <div className="absolute inset-0 bg-[var(--color-primary)] opacity-20 blur-3xl rounded-full group-hover:opacity-30 transition-opacity duration-700"></div>
-                            <img 
-                                src="/logo-barbaros.png" 
-                                alt="Barbaros Barbearia" 
-                                className="w-full max-w-[420px] mx-auto relative z-10 drop-shadow-2xl rounded-2xl border border-white/5 animate-fade-in"
-                                onError={() => setImageError(true)}
-                            />
+        <div className="min-h-screen flex flex-col bg-[var(--color-dark-bg)] relative overflow-hidden">
+            {/* Top Section - Image Banner */}
+            <div className="w-full h-[45vh] md:h-[50vh] relative flex-shrink-0">
+                <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[var(--color-dark-bg)] z-10 pointer-events-none"></div>
+                {!imageError ? (
+                    <img 
+                        src="/logo-barbaros.png" 
+                        alt="Barbaros Barbearia" 
+                        className="w-full h-full object-cover object-center"
+                        onError={() => setImageError(true)}
+                    />
+                ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[var(--color-dark-surface)]">
+                         <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--color-dark-surface)] border-2 border-[var(--color-primary)] shadow-[0_0_40px_rgba(212,175,55,0.3)]">
+                            <Scissors className="w-12 h-12 text-[var(--color-primary)]" />
                         </div>
-                    ) : (
-                        <>
-                            <div className="inline-flex items-center justify-center w-24 h-24 rounded-full bg-[var(--color-dark-surface)] border-2 border-[var(--color-primary)] mb-6 shadow-[0_0_40px_rgba(212,175,55,0.3)]">
-                                <Scissors className="w-12 h-12 text-[var(--color-primary)]" />
-                            </div>
-                            <h1 className="text-4xl font-black tracking-[0.2em] text-white uppercase mb-2" style={{ fontFamily: 'var(--font-family)' }}>
-                                Barbaros <span className="text-[var(--color-primary)]">Barbearia</span>
-                            </h1>
-                        </>
-                    )}
-                </div>
+                    </div>
+                )}
+            </div>
 
-                <div className="bg-[var(--color-dark-surface)]/90 backdrop-blur-2xl p-8 rounded-3xl border border-[var(--color-border)] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+            {/* Bottom Section - Form */}
+            <div className="flex-1 flex items-start justify-center p-6 relative z-20 -mt-12 md:-mt-20">
+                <div className="w-full max-w-md">
+                    <div className="bg-[var(--color-dark-surface)]/95 backdrop-blur-2xl p-8 rounded-3xl border border-[var(--color-border)] shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                     {error && (
                         <div className="mb-6 p-3 bg-red-500/10 border border-red-500/20 text-red-500 text-sm rounded-lg text-center font-medium">
                             {error}
@@ -148,6 +142,7 @@ export default function Login() {
                 <p className="mt-8 text-center text-xs text-[var(--color-text-secondary)] opacity-50">
                     &copy; {new Date().getFullYear()} Barbaros Barbearia. Todos os direitos reservados.
                 </p>
+                </div>
             </div>
         </div>
     );
