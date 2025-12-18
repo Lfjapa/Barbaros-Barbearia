@@ -23,30 +23,24 @@ export default function NewSale() {
     const [selectedServices, setSelectedServices] = useState([]); // Array of IDs
     const [paymentMethod, setPaymentMethod] = useState('pix');
     const [loading, setLoading] = useState(true);
-    const [commissionRate, setCommissionRate] = useState(0.40);
 
     useEffect(() => {
         async function fetchData() {
             try {
-                const [servicesData, barbersData, settings] = await Promise.all([
+                const [servicesData, barbersData] = await Promise.all([
                     getServices(),
-                    getBarbers(),
-                    getSystemSettings()
+                    getBarbers()
                 ]);
 
                 if (servicesData.length === 0) {
                     setServices(DEFAULT_SERVICES);
                 } else {
                     // Ensure prices are numbers
-                    setServices(servicesData.map(s => ({ ...s, price: Number(s.price) || 0 })));
+                    setServices(servicesData.map(s => ({ ...s, price: Number(s.price) || 0, commission: Number(s.commission) || 40 })));
                 }
 
                 setBarbers(barbersData.filter(b => b.isActive !== false));
                 
-                if (settings && settings.commissionRate) {
-                    setCommissionRate(settings.commissionRate);
-                }
-
             } catch (error) {
                 console.error("Error fetching data:", error);
                 setServices(DEFAULT_SERVICES);
@@ -78,13 +72,24 @@ export default function NewSale() {
         }
 
         try {
+            // Calculate commission based on each service's individual rate
+            const selectedServicesData = services.filter(s => selectedServices.includes(s.id));
+            
+            const commissionAmount = selectedServicesData.reduce((acc, service) => {
+                const rate = (service.commission !== undefined ? service.commission : 40) / 100;
+                return acc + (service.price * rate);
+            }, 0);
+
+            const revenueAmount = totalValue - commissionAmount;
+
             await addTransaction({
                 barberId: selectedBarber,
                 serviceIds: selectedServices,
                 total: totalValue,
                 method: paymentMethod,
                 registeredBy: currentUser ? currentUser.uid : 'unknown',
-                commissionRate: commissionRate // Pass dynamic rate
+                commissionAmount,
+                revenueAmount
             });
             toast.success("Venda Registrada com Sucesso!");
             setSelectedServices([]);

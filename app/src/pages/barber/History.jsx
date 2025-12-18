@@ -3,8 +3,9 @@ import { Layout } from '../../components/layout/Navbar';
 import { Card } from '../../components/ui/Card';
 import { useAuth } from '../../contexts/AuthContext';
 import { getTransactionsByRange, getServices, getBarbers } from '../../services/db';
-import { X, User, Calendar, CreditCard, Scissors, ChevronLeft, ChevronRight, ChevronDown, Download } from 'lucide-react';
+import { X, User, Calendar, CreditCard, Scissors, ChevronLeft, ChevronRight, ChevronDown, Download, Pencil } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import EditTransactionModal from '../../components/EditTransactionModal';
 
 export default function History() {
     const { currentUser, userRole } = useAuth();
@@ -15,10 +16,15 @@ export default function History() {
     const [loadingMore, setLoadingMore] = useState(false);
     const [lastDoc, setLastDoc] = useState(null);
     const [hasMore, setHasMore] = useState(true);
-    const [selectedItem, setSelectedItem] = useState(null);
+    const [selectedItem, setSelectedItem] = useState(null); // Deprecated/Unused if we go straight to edit
+    const [editingItem, setEditingItem] = useState(null);
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [filterIds, setFilterIds] = useState(null);
     const [exporting, setExporting] = useState(false);
+    
+    // Store raw data for the modal to avoid refetching
+    const [rawServices, setRawServices] = useState([]);
+    const [rawBarbers, setRawBarbers] = useState([]);
 
     // Reset pagination when date changes
     useEffect(() => {
@@ -52,6 +58,9 @@ export default function History() {
                     getBarbers()
                 ]);
 
+                setRawServices(servicesData);
+                setRawBarbers(barbersData);
+
                 const sMap = {};
                 servicesData.forEach(s => sMap[s.id] = s.name);
                 setServicesMap(sMap);
@@ -63,31 +72,9 @@ export default function History() {
                 currentBarbers = bMap;
 
                 // Determine Filter IDs
-                if (userRole === 'barber') {
-                    const myIds = new Set([currentUser.uid]);
-                    const normalize = (str) => str ? str.toLowerCase().trim().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
-                    const myEmail = normalize(currentUser.email);
-                    const myNameRaw = normalize(currentUser.displayName);
-                    const myNameParts = myNameRaw.split(/\s+/).filter(part => part.length > 2);
-
-                    barbersData.forEach(b => {
-                        const bEmail = normalize(b.email);
-                        if (bEmail && bEmail === myEmail) myIds.add(b.id);
-
-                        const bName = normalize(b.name);
-                        const bNameParts = bName.split(/\s+/).filter(part => part.length > 2);
-                        if (myNameParts.length > 0 && bNameParts.length > 0) {
-                            const matches = myNameParts.filter(part => bNameParts.includes(part));
-                            if (matches.length >= 2) myIds.add(b.id);
-                            else if (bName === myNameRaw && bName.length > 3) myIds.add(b.id);
-                        }
-                    });
-                    idsToUse = Array.from(myIds);
-                    setFilterIds(idsToUse);
-                } else {
-                    idsToUse = null; // Admin sees all
-                    setFilterIds(null);
-                }
+                // Agora todos veem tudo (sem filtro por barbeiro), conforme solicitado.
+                idsToUse = null; 
+                setFilterIds(null);
             }
 
             // 2. Fetch Transactions
@@ -192,11 +179,34 @@ export default function History() {
 
     // Calculate totals for the VIEWED list
     const monthTotal = history.reduce((acc, curr) => acc + curr.total, 0);
-    // Use stored commissionRate if available, otherwise fallback to 0.40
+    // Use stored commissionAmount if available, otherwise fallback to rate
     const commissionTotal = history.reduce((acc, curr) => {
+        if (curr.commissionAmount !== undefined) {
+            return acc + Number(curr.commissionAmount);
+        }
         const rate = curr.commissionRate !== undefined ? curr.commissionRate : 0.40;
         return acc + (curr.total * rate);
     }, 0);
+
+    // Calculate totals by barber (COMMISSION ONLY)
+    const totalsByBarber = history.reduce((acc, item) => {
+        const barberName = barbersMap[item.barberId] || 'Desconhecido';
+        if (!acc[barberName]) {
+            acc[barberName] = 0;
+        }
+        
+        // Calculate commission for this item
+        let commission;
+        if (item.commissionAmount !== undefined) {
+            commission = Number(item.commissionAmount);
+        } else {
+            const rate = item.commissionRate !== undefined ? item.commissionRate : 0.40;
+            commission = item.total * rate;
+        }
+        
+        acc[barberName] += commission;
+        return acc;
+    }, {});
 
     if (loading) return (
         <Layout role={userRole}>
@@ -263,13 +273,34 @@ export default function History() {
                 )}
             </div>
 
+            {/* Breakdown by Barber */}
+            {Object.keys(totalsByBarber).length > 0 && (
+                <div className="mb-6">
+                    <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3 px-1">Por Profissional</h3>
+                    <div className="flex gap-3 overflow-x-auto pb-4 scrollbar-hide">
+                        {Object.entries(totalsByBarber)
+                            .sort(([,a], [,b]) => b - a) // Sort by total descending
+                            .map(([name, total]) => (
+                            <Card key={name} className="p-4 min-w-[160px] border-l-4 border-l-[var(--color-primary)] flex-shrink-0 bg-[var(--color-dark-surface)]">
+                                <div className="text-xs text-gray-400 font-bold uppercase truncate mb-1" title={name}>
+                                    {name.split(' ')[0]} {/* First name only for compactness, or full name? Using full name but truncated via CSS */}
+                                </div>
+                                <div className="text-lg font-bold text-white">
+                                    {total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             {/* List */}
             <div className="space-y-3">
                 {history.length === 0 ? (
                     <div className="text-center py-10 text-gray-500">Nenhum registro encontrado neste período.</div>
                 ) : (
                     history.map((item) => (
-                        <div key={item.id} onClick={() => setSelectedItem(item)} className="cursor-pointer">
+                        <div key={item.id} onClick={() => setEditingItem(item)} className="cursor-pointer">
                             <Card className="p-4 hover:border-[var(--color-primary)] transition-all group relative overflow-hidden">
                                 <div className="flex justify-between items-start relative z-10">
                                     <div className="flex gap-3">
@@ -282,7 +313,7 @@ export default function History() {
                                             </div>
                                             <div className="text-xs text-gray-400 mt-1 flex items-center gap-3">
                                                 <span className="flex items-center gap-1"><User size={12}/> {barbersMap[item.barberId] || 'Desconhecido'}</span>
-                                                <span className="flex items-center gap-1"><CreditCard size={12}/> {item.method.toUpperCase()}</span>
+                                                <span className="flex items-center gap-1"><CreditCard size={12}/> {(item.method || 'Dinheiro').toUpperCase()}</span>
                                             </div>
                                         </div>
                                     </div>
@@ -322,48 +353,14 @@ export default function History() {
             )}
 
             {/* Modal Detail */}
-            {selectedItem && (
-                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 z-50" onClick={() => setSelectedItem(null)}>
-                    <div className="bg-[var(--color-surface)] border border-[var(--color-border)] p-6 rounded-2xl w-full max-w-md relative shadow-2xl" onClick={e => e.stopPropagation()}>
-                        <button 
-                            onClick={() => setSelectedItem(null)}
-                            className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors"
-                        >
-                            <X size={20} />
-                        </button>
-                        
-                        <h2 className="text-xl font-bold text-white mb-6 border-b border-white/10 pb-4">Detalhes da Venda</h2>
-                        
-                        <div className="space-y-4">
-                            <div className="flex justify-between py-2 border-b border-white/5">
-                                <span className="text-gray-400">Data</span>
-                                <span className="font-mono text-white">{selectedItem.displayDate} às {selectedItem.displayTime}</span>
-                            </div>
-                            <div className="flex justify-between py-2 border-b border-white/5">
-                                <span className="text-gray-400">Serviços</span>
-                                <span className="text-white text-right max-w-[60%]">{selectedItem.serviceIds.map(id => servicesMap[id]).join(', ')}</span>
-                            </div>
-                            <div className="flex justify-between py-2 border-b border-white/5">
-                                <span className="text-gray-400">Profissional</span>
-                                <span className="text-white">{barbersMap[selectedItem.barberId]}</span>
-                            </div>
-                            <div className="flex justify-between py-2 border-b border-white/5">
-                                <span className="text-gray-400">Pagamento</span>
-                                <span className="text-white uppercase font-bold text-xs bg-white/10 px-2 py-1 rounded">{selectedItem.method}</span>
-                            </div>
-                            
-                            <div className="mt-8 pt-4 border-t border-dashed border-white/20">
-                                <div className="flex justify-between items-end">
-                                    <span className="text-gray-400">Valor Total</span>
-                                    <span className="text-3xl font-black text-emerald-400">
-                                        {selectedItem.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            )}
+            <EditTransactionModal 
+                isOpen={!!editingItem}
+                transaction={editingItem}
+                services={rawServices}
+                barbers={rawBarbers}
+                onClose={() => setEditingItem(null)}
+                onUpdate={() => fetchData(true)}
+            />
         </Layout>
     );
 }

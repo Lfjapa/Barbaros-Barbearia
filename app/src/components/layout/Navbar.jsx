@@ -66,16 +66,9 @@ export function Navbar({ role: propRole }) {
                                         <Link
                                             to="/admin/barbers"
                                             onClick={() => setIsMenuOpen(false)}
-                                            className="px-5 py-4 text-sm font-bold text-white hover:bg-[var(--color-dark-bg)] hover:text-[var(--color-primary)] transition-colors border-b border-[var(--color-border)] whitespace-nowrap flex items-center gap-2"
-                                        >
-                                            EQUIPE
-                                        </Link>
-                                        <Link
-                                            to="/admin/settings"
-                                            onClick={() => setIsMenuOpen(false)}
                                             className="px-5 py-4 text-sm font-bold text-white hover:bg-[var(--color-dark-bg)] hover:text-[var(--color-primary)] transition-colors whitespace-nowrap flex items-center gap-2"
                                         >
-                                            CONFIGURAÇÕES
+                                            EQUIPE
                                         </Link>
                                     </div>
                                 </>

@@ -6,7 +6,6 @@ import History from './pages/barber/History';
 import Dashboard from './pages/admin/Dashboard';
 import Services from './pages/admin/Services';
 import Barbers from './pages/admin/Barbers';
-import Settings from './pages/admin/Settings';
 import { Toaster } from 'sonner';
 
 function App() {
@@ -35,7 +34,6 @@ function App() {
               <Route path="/history" element={<History />} />
               <Route path="/services" element={<Services />} />
               <Route path="/barbers" element={<Barbers />} />
-              <Route path="/settings" element={<Settings />} />
             </Routes>
           </PrivateRoute>
         } />

@@ -83,24 +83,45 @@ export async function addTransaction(transactionData) {
     // transactionData should have: barberId, serviceIds, total, method, userId (who registered), commissionRate (optional)
     const total = Number(transactionData.total);
     
-    // Use provided commissionRate or default to 0.40 if not provided (though UI should provide it)
-    // We prioritize the rate passed in transactionData to ensure historical accuracy if rules change
-    const commissionRate = transactionData.commissionRate !== undefined 
-        ? Number(transactionData.commissionRate) 
-        : 0.40; 
+    let commissionAmount;
+    let revenueAmount;
+    let commissionRate = transactionData.commissionRate;
 
-    const commissionAmount = total * commissionRate;
-    const revenueAmount = total - commissionAmount;
+    // Check if amounts are explicitly provided (e.g. from multi-service calculation)
+    if (transactionData.commissionAmount !== undefined && transactionData.revenueAmount !== undefined) {
+        commissionAmount = Number(transactionData.commissionAmount);
+        revenueAmount = Number(transactionData.revenueAmount);
+    } else {
+        // Fallback to rate-based calculation
+        // Use provided commissionRate or default to 0.40 if not provided
+        commissionRate = commissionRate !== undefined ? Number(commissionRate) : 0.40;
+        commissionAmount = total * commissionRate;
+        revenueAmount = total - commissionAmount;
+    }
 
     const docRef = await addDoc(collection(db, "transactions"), {
         ...transactionData,
         total,
-        commissionRate, // Store the rate used
+        commissionRate, // Store the rate used (might be mixed/undefined if calculated per service)
         commissionAmount,
         revenueAmount,
         date: Timestamp.now()
     });
     return docRef.id;
+}
+
+export async function updateTransaction(transactionId, transactionData) {
+    // If amounts are provided, use them. Otherwise, let backend logic decide or keep existing.
+    // Ideally, the caller should do the math if logic is complex (per-service).
+    
+    let updates = { ...transactionData };
+    
+    // If total is changing but no commission info provided, we might have an issue if we don't know the rate.
+    // However, usually updateTransaction is called with full context or specific fields.
+    // If the caller provides commissionAmount, we trust it.
+    
+    const docRef = doc(db, "transactions", transactionId);
+    await updateDoc(docRef, updates);
 }
 
 export async function getHistory(barberId) {
